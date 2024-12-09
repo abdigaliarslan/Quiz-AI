@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Quiz Game</title>
+  <style>
+    /* Стиль для основного тела страницы */
+    body {
+      font-family: 'Arial', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(to right, #6a11cb, #2575fc); /* Градиентный фон */
+      color: #fff; /* Белый цвет текста */
+      text-align: center;
+    }
+  
+    /* Стиль заголовка */
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+      animation: fadeIn 2s ease-in-out; /* Анимация появления */
+    }
+  
+    /* Стиль формы */
+    form {
+      background: rgba(255, 255, 255, 0.1); /* Полупрозрачный фон */
+      padding: 20px;
+      border-radius: 8px; /* Скругление углов */
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Тень */
+      animation: slideIn 1s ease-in-out; /* Анимация плавного появления */
+    }
+  
+    /* Стиль для элементов формы: выпадающих списков, кнопок, инпутов */
+    select, input, button {
+      margin: 10px 0;
+      padding: 12px;
+      font-size: 16px;
+      width: 100%;
+      max-width: 300px; /* Ограничение ширины */
+      border: none; /* Без границы */
+      border-radius: 5px; /* Скругленные углы */
+      outline: none; /* Убирает рамку при фокусе */
+      background: rgba(255, 255, 255, 0.8); /* Полупрозрачный белый фон */
+      color: #333; /* Текст темного цвета */
+    }
+  
+    /* Стиль кнопки */
+    button {
+      cursor: pointer; /* Указывает, что элемент кликабельный */
+      font-weight: bold; /* Жирный текст */
+      background: #4CAF50; /* Зеленый фон */
+      color: #fff; /* Белый текст */
+      transition: background 0.3s ease; /* Плавный переход цвета фона */
+    }
+  
+    /* Эффект при наведении на кнопку */
+    button:hover {
+      background: #45a049; /* Более темный зеленый */
+    }
+  
+    /* Контейнер для QR-кода */
+    #qr-container {
+      margin-top: 30px;
+      display: none; /* Скрыт по умолчанию */
+      animation: fadeIn 1.5s ease; /* Анимация появления */
+    }
+  
+    /* Стиль изображения QR-кода */
+    #qr-code {
+      margin-top: 20px;
+      border: 3px solid #fff; /* Белая рамка */
+      border-radius: 10px; /* Скругленные углы */
+      width: 150px; /* Фиксированная ширина */
+      height: 150px; /* Фиксированная высота */
+    }
+  
+    /* Анимация появления */
+    @keyframes fadeIn {
+      from {
+        opacity: 0; /* Прозрачный */
+      }
+      to {
+        opacity: 1; /* Полностью видимый */
+      }
+    }
+
+    /* Стиль ссылок */
+    a {
+      color: white; /* Белый цвет текста */
+      text-decoration: none; /* Убирает подчеркивание */
+      font-weight: bold; /* Делает текст жирным */
+      transition: color 0.3s ease; /* Плавный переход цвета */
+    }
+
+    /* Эффект при наведении на ссылку */
+    a:hover {
+      color: #ffcc00; /* Золотой оттенок */
+    }
+  
+    /* Анимация плавного появления сдвигом */
+    @keyframes slideIn {
+      from {
+        transform: translateY(-30px); /* Сдвиг вверх */
+        opacity: 0; /* Прозрачный */
+      }
+      to {
+        transform: translateY(0); /* Возврат на место */
+        opacity: 1; /* Полностью видимый */
+      }
+    }
+  
+    /* Адаптивный стиль для устройств с шириной экрана менее 600px */
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 2rem; /* Уменьшенный размер шрифта */
+      }
+  
+      select, input, button {
+        max-width: 90%; /* Ширина 90% */
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Заголовок страницы -->
+  <h1>AI Quiz Game</h1>
+  
+  <!-- Форма настроек игры -->
+  <form id="settings-form">
+    <select id="topic" required>
+      <option value="">Выберите тему</option>
+      <option value="Математика">Математика</option>
+      <option value="История">История</option>
+      <option value="Биология">Биология</option>
+    </select>
+    <input type="number" id="question-count" placeholder="Количество вопросов" required />
+    <button type="submit">Создать комнату</button>
+  </form>
+  
+  <!-- Контейнер для QR-кода -->
+  <div id="qr-container">
+    <p>Отсканируйте QR-код или перейдите по ссылке:</p>
+    <img id="qr-code" alt="QR Code" />
+  </div>
+
+  <!-- Контейнер для ссылок -->
+  <div id="links"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io(); // Подключение к WebSocket через библиотеку Socket.IO
+
+    document.getElementById("settings-form").addEventListener("submit", async (event) => {
+      event.preventDefault(); // Предотвращает стандартное поведение формы
+      
+      const topic = document.getElementById("topic").value; // Получаем выбранную тему
+      const questionCount = parseInt(document.getElementById("question-count").value, 10); // Количество вопросов
+      const roomId = "room_" + Math.random().toString(36).substr(2, 8); // Генерация уникального ID комнаты
+      const userId = "user_" + Math.random().toString(36).substring(2, 8); // Генерация уникального ID пользователя
+      const friendId = "user_" + Math.random().toString(36).substring(2, 8); // ID для приглашенного друга
+
+      if (!topic) {
+        alert("Пожалуйста, выберите тему!"); // Проверка на пустую тему
+        return;
+      }
+
+      const roomUrl = `${window.location.origin}/room?room=${roomId}&topic=${encodeURIComponent(topic)}&user=${userId}&questionCount=${questionCount}`; // Ссылка на комнату
+      const shareUrl = `${window.location.origin}/room?room=${roomId}&topic=${encodeURIComponent(topic)}&user=${friendId}&questionCount=${questionCount}`; // Ссылка для друга
+      
+      const qrCodeContainer = document.getElementById("qr-code");
+      qrCodeContainer.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(roomUrl)}`; // Генерация QR-кода
+
+      // Создаем ссылку для перехода в комнату
+      const roomLinkElement = document.createElement("a");
+      roomLinkElement.id = "share-link";
+      roomLinkElement.textContent = "Перейти в комнату";
+      roomLinkElement.href = roomUrl;
+
+      // Добавляем элементы ссылок в контейнер
+      document.getElementById("links").appendChild(roomLinkElement);
+      document.getElementById("links").appendChild(document.createElement("br"));
+
+      const shareLinkElement = document.createElement("a");
+      shareLinkElement.textContent = "Пригласить друга";
+      shareLinkElement.href = shareUrl;
+
+      // Логика для копирования ссылки приглашения
+      shareLinkElement.addEventListener("click", (event) => {
+        const newFriendId = "user_" + Math.random().toString(36).substring(2, 8);
+        const newShareUrl = `${window.location.origin}/room?room=${roomId}&topic=${encodeURIComponent(topic)}&user=${newFriendId}&questionCount=${questionCount}`;
+        shareLinkElement.href = newShareUrl;
+
+        const tempInput = document.createElement("input");
+        tempInput.value = newShareUrl;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand("copy");
+        document.body.removeChild(tempInput);
+
+        alert("Ссылку скопировал");
+        event.preventDefault();
+      });
+
+      document.getElementById("links").appendChild(shareLinkElement);
+      document.getElementById("qr-container").style.display = "block";
+
+      // Отправка данных на сервер для создания комнаты
+      try {
+        await fetch(`${window.location.origin}/api/create-room`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roomId, topic, questionCount }),
+        });
+      } catch (error) {
+        alert("Ошибка при создании комнаты.");
+      }
+    });
+  </script>
+</body>
+</html>
