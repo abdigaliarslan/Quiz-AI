@@ -5,30 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Quiz Game</title>
   <style>
-    /* Основной стиль для тела страницы */
     body {
       font-family: 'Arial', sans-serif;
       margin: 0;
       padding: 20px;
-      background: #1e1e2f; /* Темный фон */
-      color: #fff; /* Белый цвет текста */
+      background: #1e1e2f; 
+      color: #fff; 
       text-align: center;
     }
-
-    /* Заголовок игры */
     h1 {
       font-size: 2.5rem;
       margin-bottom: 10px;
     }
-
-    /* Вопросы */
+    #timer {
+      font-size: 2rem;
+      margin: 10px 0;
+      color: #fff;
+      transition: color 0.5s ease;
+    }
+    #timer.red {
+      color: #FF4D4D; 
+    }
     #question {
       font-size: 1.8rem;
       font-weight: bold;
       margin: 20px 0;
     }
-
-    /* Кнопки для ответов */
     .answer {
       margin: 10px;
       padding: 12px 20px;
@@ -36,52 +38,38 @@
       cursor: pointer;
       border: none;
       border-radius: 8px;
-      background: #fff; /* Белый фон */
-      color: #000; /* Черный текст */
+      background: #fff; 
+      color: #000; 
       transition: transform 0.2s ease, background 0.3s ease, color 0.3s ease;
     }
-
-    /* Эффект наведения для кнопок ответов */
     .answer:hover {
       background: #f0f0f0;
-      transform: scale(1.05); /* Легкое увеличение кнопки */
+      transform: scale(1.05); 
     }
-
-    /* Стили для правильного ответа */
     .correct {
-      background: #4CAF50; /* Зеленый фон */
+      background: #4CAF50; 
       color: #fff;
     }
-
-    /* Стили для неправильного ответа */
     .wrong {
-      background: #FF4D4D; /* Красный фон */
+      background: #FF4D4D; 
       color: #fff;
     }
-
-    /* Кнопки, например, для старта */
     button {
       margin-top: 15px;
       padding: 12px 20px;
       font-size: 1rem;
       border: none;
       border-radius: 8px;
-      background: #ff5722; /* Оранжевый фон */
+      background: #ff5722; 
       color: #fff;
       cursor: pointer;
     }
-
-    /* Эффект наведения для кнопок */
     button:hover {
-      background: #e64a19; /* Темно-оранжевый фон */
+      background: #e64a19; 
     }
-
-    /* Контейнер для теста */
     #test-container {
       margin-top: 20px;
     }
-
-    /* Информация об игроках */
     #players {
       font-size: 1.2rem;
       margin-top: 20px;
@@ -89,119 +77,123 @@
   </style>
 </head>
 <body>
-  <!-- Основной заголовок -->
   <h1>AI Quiz Game</h1>
   <div>
-    <!-- Кнопка старта игры -->
     <button id="start">СТАРТ</button>
   </div>
-  <!-- Количество игроков -->
   <div id="players">Игроки: 0</div>
-  <!-- Вопросы -->
+  <div id="timer">15</div>
   <div id="question"></div>
-  <!-- Контейнер для ответов -->
   <div id="test-container"></div>
-  <!-- Результаты теста -->
   <div id="result"></div>
 
-  <!-- Подключение библиотеки Socket.IO -->
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    // Инициализация соединения с сервером
     const socket = io();
 
-    // Получение элементов интерфейса
     const startButton = document.getElementById('start');
     const questionDiv = document.getElementById('question');
     const testContainer = document.getElementById('test-container');
     const resultDiv = document.getElementById('result');
     const playersDiv = document.getElementById('players');
+    const timerDiv = document.getElementById('timer');
 
-    // Получение параметров из URL (комната, пользователь, тема, количество вопросов)
     const urlParams = new URLSearchParams(window.location.search);
     const roomId = urlParams.get('room');
     const userId = urlParams.get('user');
     const topic = urlParams.get('topic');
     const questionCount = parseInt(urlParams.get('questionCount'), 10);
 
-    // Переменные для подсчета результатов
-    let correctAnswers = 0;
-    let wrongAnswers = 0;
-    let questionsAnswered = 0;
+    let hasAnswered = false;
+    let currentCorrectAnswer = null;
 
-    // Проверка на наличие ID комнаты
     if (roomId) {
-      // Присоединение к комнате
       socket.emit('join-room', userId, roomId);
     } else {
-      // Если комнаты нет, перенаправляем пользователя
       alert('Отсутствует идентификатор комнаты!');
       window.location.href = '/';
     }
 
-    // Обновление информации об игроках
     socket.on('players', (count) => {
       playersDiv.textContent = `Игроки: ${count}`;
     });
 
-    // Обработка нового вопроса
+    socket.on('timer', (timeLeft) => {
+      timerDiv.textContent = timeLeft;
+      if (timeLeft <= 5) {
+        timerDiv.classList.add('red');
+      } else {
+        timerDiv.classList.remove('red');
+      }
+
+      if (timeLeft === 0 && !hasAnswered) {
+        document.querySelectorAll('.answer').forEach((btn) => {
+          btn.disabled = true;
+          if (btn.textContent === currentCorrectAnswer) {
+            btn.classList.add('correct');
+          }
+        });
+      }
+    });
+
     socket.on('question', (data) => {
-      questionDiv.textContent = data.question; // Показать текст вопроса
-      testContainer.innerHTML = ''; // Очистить контейнер ответов
+      hasAnswered = false;
+      currentCorrectAnswer = data.correctAnswer;
+      questionDiv.textContent = data.question;
+      testContainer.innerHTML = '';
 
       data.answers.forEach((answer) => {
-        // Создание кнопок для каждого варианта ответа
         const answerButton = document.createElement('button');
         answerButton.textContent = answer;
         answerButton.classList.add('answer');
 
-        // Обработка выбора ответа
         answerButton.addEventListener('click', () => {
-          questionsAnswered++;
-          socket.emit('answer', answer, userId); // Отправка ответа на сервер
+          hasAnswered = true;
+          socket.emit('answer', roomId, userId, answer);
 
-          if (answer === data.correctAnswer) {
-            correctAnswers++; // Увеличение счетчика правильных ответов
-            answerButton.classList.add('correct'); // Пометка правильного ответа
-          } else {
-            wrongAnswers++; // Увеличение счетчика неправильных ответов
-            answerButton.classList.add('wrong'); // Пометка неправильного ответа
-          }
-
-          // Блокировка всех кнопок после ответа
           document.querySelectorAll('.answer').forEach((btn) => {
             btn.disabled = true;
             if (btn.textContent === data.correctAnswer) {
-              btn.classList.add('correct'); // Выделение правильного ответа
+              btn.classList.add('correct');
             }
           });
 
-          // Проверка завершения игры
-          if (questionsAnswered >= questionCount) {
-            socket.emit('end-game', userId); // Отправка сигнала о завершении игры
+          if (answer !== data.correctAnswer) {
+            answerButton.classList.add('wrong');
           }
         });
 
-        testContainer.appendChild(answerButton); // Добавление кнопки в контейнер
+        testContainer.appendChild(answerButton);
       });
     });
 
-    // Обработка завершения игры
-    socket.on('end-game', (results) => {
-      resultDiv.innerHTML = `
-        <h2>Результат теста</h2>
-        <p>Правильных ответов: ${correctAnswers}</p>
-        <p>Неправильных ответов: ${wrongAnswers}</p>
+    socket.on('end-game', ({ results, winner, draw }) => {
+      questionDiv.textContent = '';
+      testContainer.innerHTML = '';
+      timerDiv.textContent = '';
+
+      if (draw) {
+        questionDiv.textContent = 'Ничья';
+      } else {
+        questionDiv.textContent = `${winner} Победил`;
+      }
+
+       resultDiv.innerHTML = `
+        <h2>Результаты</h2>
+        ${Object.entries(results)
+          .map(([player, result]) => `
+            <p>${player}: Правильных - ${result.correct}, Неправильных - ${result.wrong}</p>
+          `)
+          .join('')}
       `;
     });
 
-    // Начало игры при нажатии на кнопку "СТАРТ"
     startButton.addEventListener('click', () => {
       if (topic) {
-        socket.emit('start', roomId); // Отправка сигнала на сервер о старте игры
-        startButton.disabled = true; // Блокировка кнопки
+        socket.emit('start', roomId);
+        startButton.disabled = true;
       } else {
-        alert('Пожалуйста, выберите тему!'); // Сообщение об ошибке
+        alert('Пожалуйста, выберите тему!');
       }
     });
   </script>
