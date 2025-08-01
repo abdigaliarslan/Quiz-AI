@@ -7,8 +7,9 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 
+
 require('dotenv').config();
-// const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 const app = express();
 const server = http.createServer(app);

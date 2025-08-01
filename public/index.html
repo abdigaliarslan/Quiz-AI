@@ -117,16 +117,16 @@
   <h1>AI Quiz Game</h1>
   <form id="settings-form">
     <select id="topic" required>
-      <option value="">Выберите тему</option>
-      <option value="Математика">Математика</option>
-      <option value="История">История</option>
-      <option value="Биология">Биология</option>
+      <option value="">Select a topic</option>
+      <option value="Mathematics">Mathematics</option>
+      <option value="History">History</option>
+      <option value="Biology">Biology</option>
     </select>
-    <input type="number" id="question-count" placeholder="Количество вопросов" required />
-    <button type="submit">Создать комнату</button>
+    <input type="number" id="question-count" placeholder="Number of questions" required />
+    <button type="submit">Create room</button>
   </form>
   <div id="qr-container">
-    <p>Отсканируйте QR-код или перейдите по ссылке:</p>
+    <p>Scan the QR code or follow the link:</p>
     <img id="qr-code" alt="QR Code" />
   </div>
   <div id="links"></div>
@@ -144,7 +144,7 @@
       const friendId = "user_" + Math.random().toString(36).substring(2, 8);
 
       if (!topic) {
-        alert("Пожалуйста, выберите тему!");
+        alert("Please select a topic!");
         return;
       }
 
@@ -156,14 +156,14 @@
 
       const roomLinkElement = document.createElement("a");
       roomLinkElement.id = "share-link";
-      roomLinkElement.textContent = "Перейти в комнату";
+      roomLinkElement.textContent = "Go to room";
       roomLinkElement.href = roomUrl;
 
       document.getElementById("links").appendChild(roomLinkElement);
       document.getElementById("links").appendChild(document.createElement("br"));
 
       const shareLinkElement = document.createElement("a");
-      shareLinkElement.textContent = "Пригласить друга";
+      shareLinkElement.textContent = "Invite a friend";
       shareLinkElement.href = shareUrl;
 
       shareLinkElement.addEventListener("click", (event) => {
@@ -177,8 +177,8 @@
         tempInput.select();
         document.execCommand("copy");
         document.body.removeChild(tempInput);
+        alert("Link copied");
 
-        alert("Ссылку скопировал");
         event.preventDefault();
       });
 
@@ -192,7 +192,7 @@
           body: JSON.stringify({ roomId, topic, questionCount }),
         });
       } catch (error) {
-        alert("Ошибка при создании комнаты.");
+        alert("Error creating room.");
       }
     });
   </script>
